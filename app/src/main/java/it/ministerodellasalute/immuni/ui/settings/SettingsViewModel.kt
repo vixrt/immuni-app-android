@@ -16,50 +16,62 @@
 package it.ministerodellasalute.immuni.ui.settings
 
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.navigation.fragment.findNavController
-import it.ministerodellasalute.immuni.R
+import androidx.lifecycle.viewModelScope
+import it.ministerodellasalute.immuni.extensions.livedata.Event
 import it.ministerodellasalute.immuni.extensions.nearby.ExposureNotificationClient
+import it.ministerodellasalute.immuni.extensions.utils.ExternalLinksHelper
 import it.ministerodellasalute.immuni.logic.settings.ConfigurationSettingsManager
-import it.ministerodellasalute.immuni.util.startSendingEmail
+import it.ministerodellasalute.immuni.logic.settings.models.FetchFaqsResult
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.KoinComponent
 
 class SettingsViewModel(
     private val settingsManager: ConfigurationSettingsManager
 ) : ViewModel(), KoinComponent {
+
     companion object {
-        const val EXPOSRE_NOTIFICATION_SETTINGS_REQUEST = 2206
+        const val EXPOSURE_NOTIFICATION_SETTINGS_REQUEST = 2206
     }
 
-    private val settings get() = settingsManager.settings.value
+    val navigateToFaqs = MutableLiveData<Event<Boolean>>()
+    val errorFetchingFaqs = MutableLiveData<Event<Boolean>>()
+    val loading = MutableLiveData<Boolean>()
 
-    fun onTosClick(fragment: Fragment) {
-        openUrlInDialog(fragment, settings.termsOfServiceUrl)
-    }
-
-    fun onSupportClick(fragment: Fragment) {
-        val email = settings.supportEmail
-
-        fragment.startSendingEmail(
-            email,
-            fragment.getString(R.string.app_name),
-            fragment.getString(R.string.contact_us_email_message),
-            fragment.getString(R.string.settings_contact_support)
+    fun onTouClick(fragment: Fragment) {
+        ExternalLinksHelper.openLink(
+            fragment.requireContext(),
+            settingsManager.termsOfUseUrl
         )
     }
 
-    private fun openUrlInDialog(fragment: Fragment, url: String) {
-        val action =
-            SettingsFragmentDirections.actionWebview(
-                url
-            )
-        fragment.findNavController().navigate(action)
+    fun onFaqClick() {
+        if (settingsManager.faqs.value.isNullOrEmpty()) {
+            viewModelScope.launch {
+                loading.value = true
+                delay(1000)
+                val faqs = withTimeoutOrNull(5000) {
+                    settingsManager.fetchFaqsAsync().await()
+                }
+                loading.value = false
+                if (faqs is FetchFaqsResult.Success) {
+                    navigateToFaqs.value = Event(true)
+                } else {
+                    errorFetchingFaqs.value = Event(true)
+                }
+            }
+        } else {
+            navigateToFaqs.value = Event(true)
+        }
     }
 
     fun openExposureSettings(fragment: SettingsFragment) {
         fragment.startActivityForResult(
             ExposureNotificationClient.exposureNotificationSettingsIntent,
-            EXPOSRE_NOTIFICATION_SETTINGS_REQUEST
+            EXPOSURE_NOTIFICATION_SETTINGS_REQUEST
         )
     }
 }

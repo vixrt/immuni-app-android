@@ -17,6 +17,7 @@ package it.ministerodellasalute.immuni.logic.exposure
 
 import android.app.Activity
 import android.content.Intent
+import it.ministerodellasalute.immuni.api.services.ExposureIngestionService
 import it.ministerodellasalute.immuni.extensions.nearby.ExposureNotificationClient
 import it.ministerodellasalute.immuni.extensions.nearby.ExposureNotificationManager
 import it.ministerodellasalute.immuni.logic.exposure.models.ExposureStatus
@@ -27,6 +28,7 @@ import it.ministerodellasalute.immuni.logic.exposure.repositories.*
 import it.ministerodellasalute.immuni.logic.notifications.AppNotificationManager
 import it.ministerodellasalute.immuni.logic.notifications.NotificationType
 import it.ministerodellasalute.immuni.logic.settings.ConfigurationSettingsManager
+import it.ministerodellasalute.immuni.logic.settings.models.ConfigurationSettings
 import it.ministerodellasalute.immuni.logic.user.repositories.UserRepository
 import java.io.File
 import java.util.*
@@ -34,18 +36,14 @@ import kotlin.math.max
 import kotlinx.coroutines.flow.*
 
 class ExposureManager(
-    private val notificationManager: AppNotificationManager,
     private val settingsManager: ConfigurationSettingsManager,
     private val exposureNotificationManager: ExposureNotificationManager,
     private val userRepository: UserRepository,
     private val exposureReportingRepository: ExposureReportingRepository,
     private val exposureIngestionRepository: ExposureIngestionRepository,
-    private val exposureStatusRepository: ExposureStatusRepository
+    private val exposureStatusRepository: ExposureStatusRepository,
+    private val appNotificationManager: AppNotificationManager
 ) : ExposureNotificationManager.Delegate {
-
-    companion object {
-        const val HIGH_RISK_ATTENUATION_DURATION_MINUTES = 15
-    }
 
     private val settings get() = settingsManager.settings.value
 
@@ -56,6 +54,13 @@ class ExposureManager(
     }
 
     val exposureStatus = exposureStatusRepository.exposureStatus
+
+    val lastSuccessfulCheckDate = exposureReportingRepository.lastSuccessfulCheckDate
+
+    suspend fun updateAndGetServiceIsActive(): Boolean {
+        exposureNotificationManager.update()
+        return exposureNotificationManager.areExposureNotificationsEnabled.value ?: false
+    }
 
     override suspend fun processKeys(
         serverDate: Date,
@@ -89,8 +94,6 @@ class ExposureManager(
             summaryEntity = summaryEntity.copy(
                 exposureInfos = infos.map { it.repositoryExposureInformation }
             )
-
-            notificationManager.triggerNotification(NotificationType.Exposure)
         }
 
         exposureReportingRepository.addSummary(summaryEntity)
@@ -100,8 +103,7 @@ class ExposureManager(
         summary: ExposureSummary,
         oldExposureStatus: ExposureStatus
     ): ExposureStatus {
-        if (summary.matchedKeyCount == 0 || summary.highRiskAttenuationDurationMinutes < HIGH_RISK_ATTENUATION_DURATION_MINUTES ||
-            summary.maximumRiskScore < settings.exposureInfoMinimumRiskScore) {
+        if (summary.matchedKeyCount == 0 || summary.maximumRiskScore < settings.exposureInfoMinimumRiskScore) {
             return oldExposureStatus
         }
         val oldStatusLastExposureTime =
@@ -137,6 +139,7 @@ class ExposureManager(
     suspend fun optInAndStartExposureTracing(activity: Activity) {
         stopExposureNotification()
         exposureNotificationManager.optInAndStartExposureTracing(activity)
+        appNotificationManager.removeNotification(NotificationType.ServiceNotActive)
     }
 
     suspend fun stopExposureNotification() {
@@ -180,17 +183,20 @@ class ExposureManager(
         return exposureIngestionRepository.validateOtp(otp)
     }
 
+    suspend fun dummyUpload(): Boolean {
+        return exposureIngestionRepository.dummyUpload()
+    }
+
     suspend fun uploadTeks(activity: Activity, token: OtpToken): Boolean {
         val tekHistory = requestTekHistory(activity)
+
         val exposureSummaries = exposureReportingRepository.getSummaries()
 
         val isSuccess = exposureIngestionRepository.uploadTeks(
             token = token,
             province = userRepository.user.value!!.province,
             tekHistory = tekHistory.map { it.serviceTemporaryExposureKey },
-            exposureSummaries = exposureSummaries.map {
-                it.serviceExposureSummary(serverDate = token.serverDate)
-            }
+            exposureSummaries = exposureSummaries.prepareForUpload(settings, token.serverDate)
         )
 
         if (isSuccess) {
@@ -205,14 +211,52 @@ class ExposureManager(
         exposureStatusRepository.mockExposureStatus = null
     }
 
-    fun debugCleanupDatabase() {
-        exposureReportingRepository.resetSummaries()
-        exposureReportingRepository.setLastProcessedChunk(null)
+    fun acknowledgeExposure() {
+        val exposureStatus = exposureStatus.value
+        if (exposureStatus is ExposureStatus.Exposed && !exposureStatus.acknowledged) {
+            exposureStatusRepository.setExposureStatus(exposureStatus.copy(acknowledged = true))
+        }
     }
 
     fun setMockExposureStatus(status: ExposureStatus?) {
         exposureStatusRepository.mockExposureStatus = status
     }
 
+    fun debugCleanupDatabase() {
+        exposureReportingRepository.resetSummaries()
+        exposureReportingRepository.setLastProcessedChunk(null)
+    }
+
     val hasSummaries: Boolean get() = exposureReportingRepository.getSummaries().isNotEmpty()
+}
+
+fun List<ExposureSummary>.prepareForUpload(
+    settings: ConfigurationSettings,
+    serverDate: Date
+): List<ExposureIngestionService.ExposureSummary> {
+    val exposureSummaries = this
+        .sortedByDescending { it.date }
+        .take(settings.teksMaxSummaryCount)
+
+    val infos = exposureSummaries
+        .mapIndexed { index, summary ->
+            summary.exposureInfos.map { Pair(index, it) }
+        }
+        .flatten()
+        .sortedWith(Comparator { (_, a), (_, b) ->
+            // SORT BY `totalRiskScore` DESC, `date` ASC
+            val riskComparison = b.totalRiskScore.compareTo(a.totalRiskScore)
+            if (riskComparison == 0) a.date.compareTo(b.date) else riskComparison
+        })
+        .take(settings.teksMaxInfoCount)
+
+    return exposureSummaries.mapIndexed { index, summary ->
+        val summaryInfos = infos
+            .filter { it.first == index }
+            .map { it.second }
+
+        summary
+            .copy(exposureInfos = summaryInfos)
+            .serviceExposureSummary(serverDate = serverDate)
+    }
 }

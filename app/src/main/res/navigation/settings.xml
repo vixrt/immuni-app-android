@@ -17,7 +17,7 @@
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/settings"
+    android:id="@+id/settings_nav"
     app:startDestination="@id/settingsFragment">
 
     <include app:graph="@navigation/webview" />
@@ -50,7 +50,7 @@
         app:exitAnim="@anim/slide_out_left"
         app:popEnterAnim="@anim/slide_in_left"
         app:popExitAnim="@anim/slide_out_right"
-        app:destination="@id/faq" />
+        app:destination="@id/faq_nav" />
 
     <activity
         android:id="@+id/uploadActivity"
@@ -83,7 +83,7 @@
 
     <action
         android:id="@+id/action_webview"
-        app:destination="@id/webview">
+        app:destination="@id/webview_nav">
         <argument
             android:name="url"
             app:argType="string"
@@ -97,4 +97,19 @@
     <action
         android:id="@+id/action_privacy"
         app:destination="@id/privacy" />
+
+    <dialog android:id="@+id/support"
+        android:name="it.ministerodellasalute.immuni.ui.support.SupportDialogFragment"
+        tools:layout="@layout/support_dialog" />
+    <action
+        android:id="@+id/action_support"
+        app:destination="@id/support" />
+
+    <dialog android:id="@+id/howToUploadPositive"
+        android:name="it.ministerodellasalute.immuni.ui.howtouploadpositive.HowToUploadPositiveDialogFragment"
+        tools:layout="@layout/how_to_upload_positive_dialog" />
+
+    <action
+        android:id="@+id/action_how_to_upload_positive"
+        app:destination="@id/howToUploadPositive" />
 </navigation>

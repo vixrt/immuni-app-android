@@ -16,45 +16,39 @@
 package it.ministerodellasalute.immuni.logic.worker
 
 import android.content.Context
-import androidx.work.ExistingWorkPolicy
-import androidx.work.OneTimeWorkRequest
-import androidx.work.WorkManager
+import androidx.work.*
+import it.ministerodellasalute.immuni.R
+import it.ministerodellasalute.immuni.extensions.utils.exponential
+import it.ministerodellasalute.immuni.logic.exposure.models.ExposureStatus
 import it.ministerodellasalute.immuni.logic.notifications.AppNotificationManager
 import it.ministerodellasalute.immuni.logic.notifications.NotificationType
 import it.ministerodellasalute.immuni.logic.settings.ConfigurationSettingsManager
-import it.ministerodellasalute.immuni.workers.ForceUpdateNotificationWorker
-import it.ministerodellasalute.immuni.workers.OnboardingNotCompletedWorker
-import it.ministerodellasalute.immuni.workers.RequestDiagnosisKeysWorker
+import it.ministerodellasalute.immuni.workers.*
 import java.security.SecureRandom
+import java.util.*
 import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import org.koin.core.KoinComponent
 
 class WorkerManager(
-    context: Context,
+    private val context: Context,
     private val settingsManager: ConfigurationSettingsManager,
     private val notificationManager: AppNotificationManager,
-    private val workManager: WorkManager = WorkManager.getInstance(context)
+    private val workManager: WorkManager
 ) : KoinComponent {
+    constructor(
+        context: Context,
+        settingsManager: ConfigurationSettingsManager,
+        notificationManager: AppNotificationManager
+    ) : this(
+        context = context,
+        settingsManager = settingsManager,
+        notificationManager = notificationManager,
+        workManager = WorkManager.getInstance(context)
+    )
+
     private val settings get() = settingsManager.settings.value
-    private val job = Job()
-    private val scope = CoroutineScope(Dispatchers.Default + job)
 
-    init {
-        settingsManager.settings.onEach {
-            if (settingsManager.isAppOutdated) {
-                scheduleForceUpdateNotificationWorker(withDelay = false)
-            } else {
-                notificationManager.removeNotification(NotificationType.ForcedVersionUpdate)
-            }
-        }.launchIn(scope)
-    }
-
-    fun scheduleOnboardingNotCompletedWorker(policy: ExistingWorkPolicy = ExistingWorkPolicy.KEEP) {
+    fun scheduleOnboardingNotCompletedWorker(policy: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE) {
         workManager.enqueueUniqueWork(
             "OnboardingNotCompletedWorker",
             policy,
@@ -67,11 +61,19 @@ class WorkerManager(
         )
     }
 
-    fun scheduleForceUpdateNotificationWorker(withDelay: Boolean) {
+    fun updateForceUpdateNotificationWorkerSchedule() {
+        if (settingsManager.isAppOutdated) {
+            scheduleForceUpdateNotificationWorker(withDelay = false)
+        } else {
+            notificationManager.removeNotification(NotificationType.ForcedVersionUpdate)
+        }
+    }
+
+    fun scheduleForceUpdateNotificationWorker(withDelay: Boolean = true) {
         val delay = settings.requiredUpdateNotificationPeriod.toLong()
         workManager.enqueueUniqueWork(
             "ForceUpdateNotificationWorker",
-            ExistingWorkPolicy.KEEP,
+            ExistingWorkPolicy.REPLACE,
             OneTimeWorkRequest.Builder(ForceUpdateNotificationWorker::class.java)
                 .setInitialDelay(
                     if (withDelay) delay else 0,
@@ -81,17 +83,78 @@ class WorkerManager(
         )
     }
 
-    fun scheduleInitialDiagnosisKeysRequest() {
-        enqueueDiagnosisKeysRequest(
-            ExistingWorkPolicy.KEEP,
-            delayMinutes = SecureRandom().nextInt(2 * 60).toLong()
+    fun scheduleNotificationsCleanerWorker(withDelay: Boolean = true) {
+
+        val delay = when (context.resources.getBoolean(R.bool.development_device)) {
+            true -> 10L // 10 seconds
+            else -> 60 * 15L // 15 minutes
+        }
+
+        workManager.enqueueUniqueWork(
+            "NotificationsCleanerWorker",
+            ExistingWorkPolicy.REPLACE,
+            OneTimeWorkRequest.Builder(NotificationsCleanerWorker::class.java)
+                .setInitialDelay(
+                    if (withDelay) delay else 0,
+                    TimeUnit.SECONDS
+                )
+                .build()
         )
     }
 
-    fun scheduleNextDiagnosisKeysRequest(delayMinutes: Long) {
+    fun scheduleServiceNotActiveNotificationWorker(policy: ExistingWorkPolicy) {
+        workManager.enqueueUniqueWork(
+            "ServiceNotActiveNotificationWorker",
+            policy,
+            OneTimeWorkRequest.Builder(ServiceNotActiveNotificationWorker::class.java)
+                .setInitialDelay(
+                    15,
+                    TimeUnit.MINUTES
+                )
+                .build()
+        )
+    }
+
+    fun updateRiskReminderWorker(exposureStatus: ExposureStatus) {
+        if (exposureStatus is ExposureStatus.Exposed && !exposureStatus.acknowledged) {
+            scheduleRiskReminderWorker(ExistingWorkPolicy.REPLACE)
+        } else {
+            cancelRiskReminderWorker()
+        }
+    }
+
+    fun scheduleRiskReminderWorker(policy: ExistingWorkPolicy) {
+        val delay = settings.riskReminderNotificationPeriod.toLong()
+        workManager.enqueueUniqueWork(
+            "RiskReminderWorker",
+            policy,
+            OneTimeWorkRequest.Builder(RiskReminderWorker::class.java)
+                .setInitialDelay(
+                    delay,
+                    TimeUnit.SECONDS
+                )
+                .build()
+        )
+    }
+
+    private fun cancelRiskReminderWorker() {
+        workManager.cancelUniqueWork("RiskReminderWorker")
+    }
+
+    fun scheduleInitialDiagnosisKeysRequest() {
+        // Use a unique work to avoid multiple workers.
+        // Use ExistingPeriodicWorkPolicy.REPLACE to ensure that the job is rescheduled
+        // as a workaround for https://issuetracker.google.com/166292069.
         enqueueDiagnosisKeysRequest(
             ExistingWorkPolicy.REPLACE,
-            delayMinutes = delayMinutes
+            delayMinutes = 0
+        )
+    }
+
+    fun scheduleNextDiagnosisKeysRequest() {
+        enqueueDiagnosisKeysRequest(
+            ExistingWorkPolicy.REPLACE,
+            delayMinutes = settings.exposureDetectionPeriod.toLong() / 60
         )
     }
 
@@ -105,12 +168,40 @@ class WorkerManager(
             policy,
             OneTimeWorkRequest.Builder(RequestDiagnosisKeysWorker::class.java)
                 .setInitialDelay(delayMinutes, TimeUnit.MINUTES)
-                // .setConstraints(
-                    // Constraints.Builder()
-                        // .setRequiresBatteryNotLow(true)
-                        // .setRequiresDeviceIdle(true)
-                        // .build()
-                // )
+                .setConstraints(
+                    Constraints.Builder()
+                        .build()
+                )
+                .build()
+        )
+    }
+
+    fun scheduleNextDummyExposureIngestionWorker(policy: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE) {
+        workManager.enqueueUniqueWork(
+            "NextDummyExposureIngestionWorker",
+            policy,
+            OneTimeWorkRequest.Builder(DummyExposureIngestionWorker::class.java)
+                .setInitialDelay(computeNextDummyExposureIngestionScheduleDelay(), TimeUnit.SECONDS)
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiresBatteryNotLow(true)
+                        .build()
+                )
+                .build()
+        )
+    }
+
+    private fun computeNextDummyExposureIngestionScheduleDelay(): Long {
+        return SecureRandom().exponential(settings.dummyTeksAverageOpportunityWaitingTime.toLong())
+    }
+
+    fun scheduleExposureAnalyticsWorker(serverDate: Date) {
+        workManager.enqueueUniqueWork(
+            "ExposureAnalyticsWorker",
+            ExistingWorkPolicy.REPLACE,
+            OneTimeWorkRequest.Builder(ExposureAnalyticsWorker::class.java)
+                .setInitialDelay(10, TimeUnit.MINUTES)
+                .setInputData(workDataOf(ExposureAnalyticsWorker.SERVER_DATE_INPUT_DATA_KEY to serverDate.time))
                 .build()
         )
     }

@@ -36,21 +36,36 @@ interface ConfigurationSettingsService {
 @JsonClass(generateAdapter = true)
 data class ConfigurationSettings(
     @field:Json(name = "minimum_build_version") val minimumBuildVersion: Int,
-    @field:Json(name = "faq_url") val faqUrl: Map<Language, String>,
-    @field:Json(name = "tos_url") val termsOfServiceUrl: String,
-    @field:Json(name = "pp_url") val privacyPolicyUrl: String,
+    @field:Json(name = "faq_url") val faqUrls: Map<String, String>,
+    @field:Json(name = "tou_url") val termsOfUseUrls: Map<String, String>,
+    @field:Json(name = "pn_url") val privacyNoticeUrls: Map<String, String>,
     @field:Json(name = "exposure_configuration") val exposureConfiguration: ExposureConfiguration,
-    @field:Json(name = "service_not_active_notification_period") val serviceNotActiveNotificationPeriod: Int, // FIXME use me!
+    @field:Json(name = "service_not_active_notification_period") val serviceNotActiveNotificationPeriod: Int,
     @field:Json(name = "onboarding_not_completed_notification_period") val onboardingNotCompletedNotificationPeriod: Int,
     @field:Json(name = "required_update_notification_period") val requiredUpdateNotificationPeriod: Int,
-    @field:Json(name = "risk_reminder_notification_period") val riskReminderNotificationPeriod: Int, // FIXME use me!
+    @field:Json(name = "risk_reminder_notification_period") val riskReminderNotificationPeriod: Int,
     @field:Json(name = "exposure_info_minimum_risk_score") val exposureInfoMinimumRiskScore: Int,
     @field:Json(name = "exposure_detection_period") val exposureDetectionPeriod: Int,
-    @field:Json(name = "support_email") val supportEmail: String = defaultSettings.supportEmail
+    @field:Json(name = "dummy_teks_average_opportunity_waiting_time") val dummyTeksAverageOpportunityWaitingTime: Int,
+    @field:Json(name = "dummy_teks_average_request_waiting_time") val dummyTeksAverageRequestWaitingTime: Int,
+    @field:Json(name = "dummy_teks_request_probabilities") val dummyTeksRequestProbabilities: List<Double>,
+    @field:Json(name = "teks_max_summary_count") val teksMaxSummaryCount: Int,
+    @field:Json(name = "teks_max_info_count") val teksMaxInfoCount: Int,
+    @field:Json(name = "teks_packet_size") val teksPacketSize: Int,
+    @field:Json(name = "experimental_phase") val experimentalPhase: Boolean = false,
+    @field:Json(name = "support_phone_closing_time") val supportPhoneClosingTime: String,
+    @field:Json(name = "support_phone_opening_time") val supportPhoneOpeningTime: String,
+    @field:Json(name = "support_phone") val supportPhone: String? = null,
+    @field:Json(name = "support_email") val supportEmail: String? = null,
+    @field:Json(name = "reopen_reminder") val reopenReminder: Boolean = true,
+    @field:Json(name = "operational_info_with_exposure_sampling_rate") val operationalInfoWithExposureSamplingRate: Double,
+    @field:Json(name = "operational_info_without_exposure_sampling_rate") val operationalInfoWithoutExposureSamplingRate: Double,
+    @field:Json(name = "dummy_analytics_waiting_time") val dummyAnalyticsWaitingTime: Int
+
 )
 
 @JsonClass(generateAdapter = true)
-class ExposureConfiguration(
+data class ExposureConfiguration(
     @field:Json(name = "attenuation_thresholds") val attenuationThresholds: List<Int>,
     @field:Json(name = "attenuation_bucket_scores") val attenuationScores: List<Int>,
     @field:Json(name = "days_since_last_exposure_bucket_scores") val daysSinceLastExposureScores: List<Int>,
@@ -60,49 +75,76 @@ class ExposureConfiguration(
 )
 
 @JsonClass(generateAdapter = true)
-class Faqs(
+data class Faqs(
     @field:Json(name = "faqs") val faqs: List<Faq>
 )
 
 @JsonClass(generateAdapter = true)
-class Faq(
+data class Faq(
     @field:Json(name = "title") val title: String,
     @field:Json(name = "content") val content: String
 )
 
 enum class Language(val code: String) {
-    @Json(name = "en") EN("en"),
-    @Json(name = "it") IT("it"),
-    @Json(name = "de") DE("de");
+    @Json(name = "en")
+    EN("en"),
+
+    @Json(name = "it")
+    IT("it"),
+
+    @Json(name = "de")
+    DE("de"),
+
+    @Json(name = "fr")
+    FR("fr"),
+
+    @Json(name = "es")
+    ES("es");
 
     companion object {
         fun fromCode(code: String) = values().firstOrNull { it.code == code } ?: EN
     }
 }
 
-// FIXME define sensible defaults!
+private fun languageMap(map: (Language) -> String): Map<String, String> {
+    return mapOf(*Language.values().map { language ->
+        language.code to map(language)
+    }.toTypedArray())
+}
+
 val defaultSettings = ConfigurationSettings(
     minimumBuildVersion = 0,
-    faqUrl = mapOf(
-        Language.IT to "",
-        Language.DE to "",
-        Language.EN to ""
-    ),
-    termsOfServiceUrl = "",
-    privacyPolicyUrl = "",
-    supportEmail = "",
+    faqUrls = languageMap { "https://get.immuni.gov.it/docs/faq-${it.code}.json" },
+    termsOfUseUrls = languageMap { "https://www.immuni.italia.it/app-tou.html" },
+    privacyNoticeUrls = languageMap { "https://www.immuni.italia.it/app-pn.html" },
+
     exposureConfiguration = ExposureConfiguration(
         attenuationThresholds = listOf(50, 70),
-        attenuationScores = listOf(1, 2, 3, 4, 5, 6, 7, 8),
-        daysSinceLastExposureScores = listOf(1, 2, 3, 4, 5, 6, 7, 8),
-        durationScores = listOf(1, 2, 3, 4, 5, 6, 7, 8),
-        transmissionRiskScores = listOf(1, 2, 3, 4, 5, 6, 7, 8),
+        attenuationScores = listOf(0, 5, 5, 5, 5, 5, 5, 5),
+        daysSinceLastExposureScores = listOf(1, 1, 1, 1, 1, 1, 1, 1),
+        durationScores = listOf(0, 0, 0, 0, 5, 5, 5, 5),
+        transmissionRiskScores = listOf(1, 1, 1, 1, 1, 1, 1, 1),
         minimumRiskScore = 1
     ),
-    exposureDetectionPeriod = 60 * 60 * 2, // 2 hours
-    exposureInfoMinimumRiskScore = 1,
+    exposureInfoMinimumRiskScore = 20,
+    exposureDetectionPeriod = 60 * 60 * 4, // 4 hours
     serviceNotActiveNotificationPeriod = 60 * 60 * 24, // 1 day
     onboardingNotCompletedNotificationPeriod = 60 * 60 * 24, // 1 day
     requiredUpdateNotificationPeriod = 60 * 60 * 24, // 1 day
-    riskReminderNotificationPeriod = 60 * 60 * 24 // 1 day
+    riskReminderNotificationPeriod = 60 * 60 * 24, // 1 day
+    dummyTeksAverageOpportunityWaitingTime = 60 * 24 * 60 * 60, // 60 days
+    dummyTeksAverageRequestWaitingTime = 10,
+    dummyTeksRequestProbabilities = listOf(0.95, 0.1),
+    teksMaxSummaryCount = 6 * 14,
+    teksMaxInfoCount = 600,
+    teksPacketSize = 110_000,
+    experimentalPhase = false,
+    supportEmail = null,
+    supportPhone = null,
+    supportPhoneOpeningTime = "7",
+    supportPhoneClosingTime = "22",
+    reopenReminder = true,
+    operationalInfoWithExposureSamplingRate = 1.0,
+    operationalInfoWithoutExposureSamplingRate = 0.6,
+    dummyAnalyticsWaitingTime = 2_592_000
 )

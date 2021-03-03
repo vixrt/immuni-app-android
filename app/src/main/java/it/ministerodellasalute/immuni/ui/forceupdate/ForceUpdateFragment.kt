@@ -40,17 +40,20 @@ class ForceUpdateFragment : Fragment(R.layout.force_update_fragment) {
 
         when {
             viewModel.isAppOutdated -> {
-                title.text = getString(R.string.force_update_app_title)
-                message.text = getString(R.string.force_update_app_message)
+                title.text = getString(R.string.force_update_view_app_title)
+                message.text = getString(R.string.notifications_update_app_description)
+                updateIcon.setImageResource(R.drawable.ic_update)
             }
             viewModel.playServicesRequireUpdate -> {
                 title.text = getString(R.string.force_update_play_services_title)
                 message.text = getString(R.string.force_update_play_services_message)
+                updateIcon.setImageResource(R.drawable.ic_update)
             }
             viewModel.exposureNotificationsNotAvailable -> {
                 title.text = getString(R.string.force_update_not_available_title)
                 message.text = getString(R.string.force_update_not_available_message)
                 update.visibility = View.INVISIBLE
+                updateIcon.setImageResource(R.drawable.ic_update_wait)
             }
         }
 

@@ -19,11 +19,11 @@ import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.fragment.findNavController
-import it.ministerodellasalute.immuni.OnboardingDirections
+import it.ministerodellasalute.immuni.OnboardingNavDirections
 import it.ministerodellasalute.immuni.R
 import it.ministerodellasalute.immuni.extensions.activity.setLightStatusBar
 import it.ministerodellasalute.immuni.extensions.view.setSafeOnClickListener
-import kotlinx.android.synthetic.main.onboarding_exposure_fragment.*
+import kotlinx.android.synthetic.main.onboarding_notifications_fragment.*
 
 class NotificationsFragment :
     ViewPagerBaseFragment(R.layout.onboarding_notifications_fragment) {
@@ -36,11 +36,12 @@ class NotificationsFragment :
             if (canProceed()) {
                 viewModel.onNextTap()
             } else {
-                val action = OnboardingDirections.actionNotificationSteps()
+                val action = OnboardingNavDirections.actionNotificationSteps()
                 findNavController().navigate(action)
             }
         }
 
+        setupImage(R.raw.lottie_phones_07, R.drawable.ic_onboarding_notifications)
         checkSpacing()
     }
 

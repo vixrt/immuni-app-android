@@ -14,7 +14,7 @@
       src="https://img.shields.io/github/v/release/immuni-app/app-android">
     </a>
     <!-- CoC -->
-		<a href="CODE-OF-CONDUCT.md">
+		<a href="CODE_OF_CONDUCT.md">
       <img src="https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg" />
     </a>
     <a href="https://circleci.com/gh/immuni-app/immuni-app-android">
@@ -123,13 +123,6 @@ To build the APK and immediately install it on a running emulator or connected d
 >Please note that Google restricts the usage of the [Exposure Notification API](https://www.google.com/covid19/exposurenotifications/) to government entities or developers approved by a government entity to develop an application on behalf of a government for COVID-19 response efforts. Full details are in the [Additional Terms](https://blog.google/documents/72/Exposure_Notifications_Service_Additional_Terms.pdf) document. Otherwise, you may build and use the application, but you will not be able to use the underlying Exposure Notification system.
 
 For more information about how the project is generated and structured, please refer to the [CONTRIBUTING](CONTRIBUTING.md) file.
-
-## Backend services
-
-At the current stage, the application points to backend services which are not publicly accessible and whose source code has not been released. Note that the application is designed to work without a backend, especially in the context of not having the Exposure Notification entitlements (see [Installation](#installation)).
-
-Please see this [issue](https://github.com/immuni-app/immuni-app-android/issues/1) for more information about this topic.
-
 
 # Testing
 

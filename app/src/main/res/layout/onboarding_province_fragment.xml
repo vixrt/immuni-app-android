@@ -98,6 +98,19 @@
                     app:layout_constraintStart_toStartOf="@+id/pageTitle"
                     app:layout_constraintTop_toBottomOf="@+id/pageTitle" />
 
+                <TextView
+                    android:id="@+id/knowMore"
+                    style="@style/OnboardingKnowMore"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:maxLines="1"
+                    android:text="@string/onboarding_common_discover_more"
+                    app:autoSizeTextType="uniform"
+                    app:layout_constraintEnd_toEndOf="@+id/description"
+                    app:layout_constraintStart_toStartOf="@+id/description"
+                    app:layout_constraintTop_toBottomOf="@id/description" />
+
                 <include
                     android:id="@+id/toolbarSeparator"
                     layout="@layout/toolbar_separator"
@@ -117,7 +130,8 @@
                     android:id="@+id/navigationIcon"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:src="@drawable/ic_back" />
+                    android:contentDescription="@string/accessibility_back"
+                    app:srcCompat="@drawable/ic_back" />
                 <TextView
                     android:id="@+id/toolbarTitle"
                     style="@style/H1NavBar"

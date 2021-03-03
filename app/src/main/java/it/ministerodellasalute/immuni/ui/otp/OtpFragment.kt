@@ -26,6 +26,7 @@ import com.google.android.material.appbar.AppBarLayout
 import it.ministerodellasalute.immuni.R
 import it.ministerodellasalute.immuni.extensions.activity.loading
 import it.ministerodellasalute.immuni.extensions.activity.setLightStatusBar
+import it.ministerodellasalute.immuni.extensions.view.gone
 import it.ministerodellasalute.immuni.extensions.view.setSafeOnClickListener
 import it.ministerodellasalute.immuni.extensions.view.visible
 import it.ministerodellasalute.immuni.util.ProgressDialogFragment
@@ -74,11 +75,19 @@ class OtpFragment : Fragment(R.layout.otp_fragment) {
 
         verify.setSafeOnClickListener { viewModel.verify() }
 
+        knowMore.setSafeOnClickListener {
+            val action = OtpFragmentDirections.actionHowToUploadPositive()
+            findNavController().navigate(action)
+        }
+
         viewModel.otpCode.observe(viewLifecycleOwner) { otpCode.text = it }
 
         viewModel.loading.observe(viewLifecycleOwner) {
             activity?.loading(it, ProgressDialogFragment(), Bundle().apply {
-                putString(ProgressDialogFragment.MESSAGE, getString(R.string.settings_data_load))
+                putString(
+                    ProgressDialogFragment.MESSAGE,
+                    getString(R.string.upload_data_verify_loading)
+                )
             })
         }
 
@@ -91,8 +100,9 @@ class OtpFragment : Fragment(R.layout.otp_fragment) {
 
         viewModel.buttonDisabledMessage.observe(viewLifecycleOwner) {
             if (it == null) {
-                verify.text = getString(R.string.upload_data_verify)
+                verify.text = getString(R.string.upload_data_verify_button)
                 verify.isEnabled = true
+                authorizationError.gone()
             } else {
                 verify.text = it
                 verify.isEnabled = false

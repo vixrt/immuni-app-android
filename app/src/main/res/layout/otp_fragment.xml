@@ -41,30 +41,32 @@
             android:clipChildren="false"
             app:layout_collapseMode="pin">
 
-            <ImageView
-                android:id="@+id/warningIcon"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="38dp"
-                android:contentDescription="@string/upload_data_healthcare_authorization_warning"
-                android:src="@drawable/ic_warning_small"
-                app:layout_constraintBottom_toBottomOf="@+id/healthcareAuthorizationWarning"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="@+id/healthcareAuthorizationWarning" />
 
             <TextView
                 android:id="@+id/healthcareAuthorizationWarning"
                 style="@style/P1Text"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
+                android:layout_marginStart="30dp"
                 android:layout_marginEnd="30dp"
-                android:fontFamily="@font/euclid_circular_semi_bold"
-                android:text="@string/upload_data_healthcare_authorization_warning"
-                android:textColor="@color/text_error_red"
+                android:fontFamily="@font/euclid_circular_bold"
+                android:text="@string/upload_data_warning_message"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toEndOf="@+id/warningIcon"
+                app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/knowMore"
+                style="@style/OnboardingKnowMore"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:layout_marginEnd="30dp"
+                android:text="@string/home_view_service_active_discover_more"
+                app:layout_constraintEnd_toEndOf="@+id/healthcareAuthorizationWarning"
+                app:layout_constraintHorizontal_bias="0.2"
+                app:layout_constraintStart_toStartOf="@+id/healthcareAuthorizationWarning"
+                app:layout_constraintTop_toBottomOf="@+id/healthcareAuthorizationWarning" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/firstStepCard"
@@ -72,11 +74,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="25dp"
-                android:layout_marginTop="25dp"
+                android:layout_marginTop="24dp"
                 android:layout_marginEnd="25dp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/healthcareAuthorizationWarning">
+                app:layout_constraintTop_toBottomOf="@+id/knowMore">
 
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
@@ -104,7 +106,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="25dp"
-                        android:text="@string/upload_data_code_instructions"
+                        android:text="@string/upload_data_code_message"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toEndOf="@+id/stepNumberOne"
                         app:layout_constraintTop_toTopOf="parent" />
@@ -170,7 +172,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="25dp"
-                        android:text="@string/upload_data_wait_for_confirmation"
+                        android:text="@string/upload_data_wait_operator_message"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toEndOf="@+id/stepNumberTwo"
                         app:layout_constraintTop_toTopOf="parent" />
@@ -227,7 +229,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="25dp"
-                        android:text="@string/upload_data_wait_for_confirmation"
+                        android:text="@string/upload_data_verify_message"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toEndOf="@+id/stepNumberThree"
                         app:layout_constraintTop_toTopOf="parent" />
@@ -239,7 +241,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
                         android:fontFamily="@font/euclid_circular_semi_bold"
-                        android:text="@string/upload_code_not_authotized"
+                        android:text="@string/upload_data_verify_error"
                         android:textColor="@color/text_error_red"
                         android:visibility="gone"
                         app:layout_constraintEnd_toEndOf="@id/checkAuthorization"
@@ -253,7 +255,7 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="bottom"
                         android:layout_marginTop="10dp"
-                        android:text="@string/upload_data_verify"
+                        android:text="@string/upload_data_verify_button"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toEndOf="@+id/checkAuthorization"
                         app:layout_constraintStart_toStartOf="@+id/checkAuthorization"
@@ -321,8 +323,9 @@
                     android:id="@+id/navigationIcon"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:contentDescription="@string/accessibility_back"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:src="@drawable/ic_back" />
+                    app:srcCompat="@drawable/ic_back" />
 
                 <TextView
                     android:id="@+id/toolbarTitle"
@@ -333,7 +336,7 @@
                     android:paddingStart="@dimen/activity_vertical_margin"
                     android:paddingEnd="32dp"
                     android:singleLine="true"
-                    android:text="@string/upload_data_title"
+                    android:text="@string/settings_setting_load_data"
                     android:textAllCaps="false" />
             </androidx.appcompat.widget.Toolbar>
 

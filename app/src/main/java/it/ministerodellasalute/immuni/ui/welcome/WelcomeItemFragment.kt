@@ -20,15 +20,17 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import androidx.navigation.fragment.findNavController
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import it.ministerodellasalute.immuni.R
 import it.ministerodellasalute.immuni.extensions.utils.ScreenUtils
+import it.ministerodellasalute.immuni.extensions.utils.isTopEndDevice
 import it.ministerodellasalute.immuni.extensions.view.gone
-import it.ministerodellasalute.immuni.extensions.view.setSafeOnClickListener
 import it.ministerodellasalute.immuni.extensions.view.visible
 import it.ministerodellasalute.immuni.util.GlideApp
 import kotlinx.android.synthetic.main.welcome_item_fragment.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class WelcomeItemFragment : Fragment() {
 
@@ -36,7 +38,6 @@ class WelcomeItemFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         position = arguments?.getInt("position") ?: 0
     }
 
@@ -52,40 +53,80 @@ class WelcomeItemFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         title.text = when (position) {
-            0 -> getString(R.string.welcome_1_title)
-            1 -> getString(R.string.welcome_2_title)
-            2 -> getString(R.string.welcome_3_title)
-            else -> getString(R.string.welcome_4_title)
+            0 -> getString(R.string.welcome_view_items_first_title)
+            1 -> getString(R.string.welcome_view_items_second_title)
+            2 -> getString(R.string.welcome_view_items_third_title)
+            else -> getString(R.string.welcome_view_items_fourth_title)
         }
 
         description.text = when (position) {
-            0 -> getString(R.string.welcome_1_description)
-            1 -> getString(R.string.welcome_2_description)
-            2 -> getString(R.string.welcome_3_description)
-            else -> getString(R.string.welcome_4_description)
-        }
-
-        knowMore.setSafeOnClickListener {
-            val action = WelcomeFragmentDirections.actionHowitworks(false)
-            findNavController().navigate(action)
+            0 -> getString(R.string.welcome_view_items_first_description)
+            1 -> getString(R.string.welcome_view_items_second_description)
+            2 -> getString(R.string.welcome_view_items_third_description)
+            else -> getString(R.string.welcome_view_items_fourth_description)
         }
 
         checkSpacing()
     }
 
+    /**
+     * Use Lottie animations or simple images
+     * depending on the device specs.
+     */
     private fun loadIllustrations() {
-        val imageResource = when (position) {
-            0 -> R.drawable.welcome_1
-            1 -> R.drawable.welcome_2
-            2 -> R.drawable.welcome_3
-            else -> R.drawable.welcome_4
-        }
 
-        GlideApp
-            .with(requireContext())
-            .load(imageResource)
-            .diskCacheStrategy(DiskCacheStrategy.NONE)
-            .into(image)
+        if (isTopEndDevice(requireContext())) {
+            val lottieResource = when (position) {
+                0 -> R.raw.lottie_happiness_01
+                1 -> R.raw.lottie_selfcare_02
+                2 -> R.raw.lottie_window_03
+                else -> R.raw.lottie_lock_04
+            }
+            image.setAnimation(lottieResource)
+        } else {
+            val imageResource = when (position) {
+                0 -> R.drawable.welcome_1
+                1 -> R.drawable.welcome_2
+                2 -> R.drawable.welcome_3
+                else -> R.drawable.welcome_4
+            }
+
+            GlideApp
+                .with(requireContext())
+                .load(imageResource)
+                .diskCacheStrategy(DiskCacheStrategy.NONE)
+                .into(image)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (isTopEndDevice(requireContext())) {
+            image.pauseAnimation()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (isTopEndDevice(requireContext())) {
+            // the first animation doesn't loop
+            // the others yes
+            if (position == 0) {
+                if (image.progress == 0f) {
+                    image.loop(false)
+                    lifecycleScope.launch {
+                        delay(250)
+                        image.resumeAnimation()
+                    }
+                }
+            } else {
+                image.loop(true)
+                lifecycleScope.launch {
+                    delay(250)
+                    image.resumeAnimation()
+                }
+            }
+        }
     }
 
     /**

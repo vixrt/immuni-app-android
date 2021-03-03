@@ -19,28 +19,43 @@ import it.ministerodellasalute.immuni.logic.user.models.Region
 import it.ministerodellasalute.immuni.logic.user.models.User
 import it.ministerodellasalute.immuni.logic.user.repositories.RegionRepository
 import it.ministerodellasalute.immuni.logic.user.repositories.UserRepository
-import it.ministerodellasalute.immuni.logic.worker.WorkerManager
 import org.koin.core.KoinComponent
 
 class UserManager(
     private val userRepository: UserRepository,
-    private val regionRepository: RegionRepository,
-    private val workerManager: WorkerManager
+    private val regionRepository: RegionRepository
 ) : KoinComponent {
+    // region: Setup
+
+    val isSetupComplete = userRepository.isSetupComplete
+
+    fun setSetupComplete(complete: Boolean) {
+        userRepository.setSetupComplete(complete)
+    }
+
+    // endregion
+
+    // region: Welcome
+
     val isWelcomeComplete = userRepository.isWelcomeComplete
 
     fun setWelcomeComplete(complete: Boolean) {
         userRepository.setWelcomeComplete(complete)
     }
 
+    // endregion
+
+    // region: Onboarding
+
     val isOnboardingComplete = userRepository.isOnboardingComplete
 
     fun setOnboardingComplete(complete: Boolean) {
         userRepository.setOnboardingComplete(complete)
-        if (complete) {
-            workerManager.scheduleInitialDiagnosisKeysRequest()
-        }
     }
+
+    // endregion
+
+    // region: User
 
     val user = userRepository.user
 
@@ -51,4 +66,6 @@ class UserManager(
     fun regions(): List<Region> = regionRepository.regions()
 
     fun provinces(region: Region) = regionRepository.provinces(region = region)
+
+    // endregion
 }

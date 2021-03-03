@@ -18,23 +18,22 @@ package it.ministerodellasalute.immuni.ui.onboarding
 import android.app.Activity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.*
-import androidx.navigation.fragment.findNavController
 import it.ministerodellasalute.immuni.R
-import it.ministerodellasalute.immuni.extensions.activity.toast
 import it.ministerodellasalute.immuni.extensions.livedata.Event
 import it.ministerodellasalute.immuni.extensions.notifications.PushNotificationManager
+import it.ministerodellasalute.immuni.extensions.utils.ExternalLinksHelper
 import it.ministerodellasalute.immuni.logic.exposure.ExposureManager
 import it.ministerodellasalute.immuni.logic.settings.ConfigurationSettingsManager
 import it.ministerodellasalute.immuni.logic.user.UserManager
 import it.ministerodellasalute.immuni.logic.user.models.Province
 import it.ministerodellasalute.immuni.logic.user.models.Region
 import it.ministerodellasalute.immuni.logic.user.models.User
-import it.ministerodellasalute.immuni.ui.onboarding.fragments.ViewPagerFragmentDirections
-import kotlinx.coroutines.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import org.koin.core.KoinComponent
 
 class OnboardingViewModel(
@@ -44,8 +43,6 @@ class OnboardingViewModel(
     val exposureManager: ExposureManager,
     val pushNotificationManager: PushNotificationManager
 ) : ViewModel(), KoinComponent {
-
-    private val settings get() = settingsManager.settings.value
 
     val loading = MutableLiveData<Boolean>()
 
@@ -65,26 +62,33 @@ class OnboardingViewModel(
     val navigateToMainPage = MutableLiveData<Event<Boolean>>()
     val navigateToNextPage = MutableLiveData<Event<Boolean>>()
     val skipNextPage = MutableLiveData<Event<Boolean>>()
+    val askRegionConfirmation = MutableLiveData<Event<Boolean>>()
     val isBroadcastingActive = exposureManager.isBroadcastingActive.asLiveData()
     val navigateToPrevPage = MutableLiveData<Event<Boolean>>()
+    val googlePlayServicesError = MutableLiveData<Pair<String, String>>()
 
     init {
         userManager.user.value?.region?.let {
             _region.value = it
         }
+
+        userManager.user.value?.province?.let {
+            _province.value = it
+        }
     }
 
     fun onPrivacyPolicyClick(fragment: Fragment) {
-        openUrlInDialog(fragment, settings.privacyPolicyUrl)
+        ExternalLinksHelper.openLink(
+            fragment.requireContext(),
+            settingsManager.privacyNoticeUrl
+        )
     }
 
     fun onTosClick(fragment: Fragment) {
-        openUrlInDialog(fragment, settings.termsOfServiceUrl)
-    }
-
-    private fun openUrlInDialog(fragment: Fragment, url: String) {
-        val action = ViewPagerFragmentDirections.actionWebview(url)
-        fragment.findNavController().navigate(action)
+        ExternalLinksHelper.openLink(
+            fragment.requireContext(),
+            settingsManager.termsOfUseUrl
+        )
     }
 
     val isOnboardingComplete
@@ -131,6 +135,17 @@ class OnboardingViewModel(
     // If this region has only one province, skip the province selection page
     // And automatically select this province
     fun onRegionNextTap() {
+        when (_region.value) {
+            Region.abroad -> askRegionConfirmation.value = Event(true)
+            else -> moveToNext()
+        }
+    }
+
+    fun onAbroadRegionConfirmed() {
+        moveToNext()
+    }
+
+    private fun moveToNext() {
         val provinces = _region.value?.provinces()
         val provincesCount = provinces?.size ?: Int.MAX_VALUE
         if (provinces != null && provincesCount == 1) {
@@ -154,11 +169,33 @@ class OnboardingViewModel(
             try {
                 exposureManager.optInAndStartExposureTracing(activity)
             } catch (e: Exception) {
-                toast(
-                    activity.applicationContext,
-                    activity.getString(R.string.onboarding_exposure_api_not_activated)
-                )
                 e.printStackTrace()
+
+                val errorCode: String? = when {
+                    // The hardware capability of the device was not supported
+                    // (missing bluetooth multi-cast or BLE support altogether).
+                    e.message?.contains("39501") == true -> {
+                        "39501"
+                    }
+                    // The client is unauthorized to access the APIs (wrong SHA256 or package name).
+                    e.message?.contains("39507") == true -> {
+                        "39507"
+                    }
+                    // The client has been rate limited for access to this API.
+                    e.message?.contains("39508") == true -> {
+                        "39508"
+                    }
+                    else -> {
+                        null
+                    }
+                }
+
+                val title = activity.getString(R.string.force_update_not_available_title)
+                var message = activity.getString(R.string.force_update_not_available_message)
+                errorCode?.let { code ->
+                    message += "\n\nError code: $code."
+                }
+                googlePlayServicesError.value = Pair(title, message)
             }
         }
     }

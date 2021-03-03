@@ -20,19 +20,25 @@ import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.appbar.AppBarLayout
 import it.ministerodellasalute.immuni.BuildConfig
 import it.ministerodellasalute.immuni.R
-import it.ministerodellasalute.immuni.SettingsDirections
+import it.ministerodellasalute.immuni.SettingsNavDirections
+import it.ministerodellasalute.immuni.extensions.activity.loading
 import it.ministerodellasalute.immuni.extensions.activity.setLightStatusBar
 import it.ministerodellasalute.immuni.extensions.playstore.PlayStoreActions
+import it.ministerodellasalute.immuni.extensions.utils.ExternalLinksHelper
 import it.ministerodellasalute.immuni.extensions.view.setSafeOnClickListener
+import it.ministerodellasalute.immuni.ui.dialog.ConfirmationDialogListener
+import it.ministerodellasalute.immuni.ui.dialog.openConfirmationDialog
+import it.ministerodellasalute.immuni.util.ProgressDialogFragment
 import kotlin.math.abs
 import kotlinx.android.synthetic.main.settings_fragment.*
 import org.koin.androidx.viewmodel.ext.android.getViewModel
 
-class SettingsFragment : Fragment(R.layout.settings_fragment) {
+class SettingsFragment : Fragment(R.layout.settings_fragment), ConfirmationDialogListener {
 
     private lateinit var viewModel: SettingsViewModel
 
@@ -53,17 +59,17 @@ class SettingsFragment : Fragment(R.layout.settings_fragment) {
         // data management
 
         dataLoadButton.setSafeOnClickListener {
-            val action = SettingsDirections.actionUploadData()
+            val action = SettingsNavDirections.actionUploadData()
             findNavController().navigate(action)
         }
 
         // information
 
         faqButton.setSafeOnClickListener {
-            findNavController().navigate(SettingsDirections.actionFaq())
+            viewModel.onFaqClick()
         }
         termsOfServiceButton.setSafeOnClickListener {
-            viewModel.onTosClick(this)
+            viewModel.onTouClick(this)
         }
         privacyPolicyButton.setSafeOnClickListener {
             // viewModel.onPrivacyPolicyClick(this)
@@ -73,16 +79,24 @@ class SettingsFragment : Fragment(R.layout.settings_fragment) {
 
         // general
 
-        contactSupportButton.setSafeOnClickListener {
-            viewModel.onSupportClick(this)
-        }
-
         changeProvinceButton.setSafeOnClickListener {
-            val action = SettingsDirections.actionOnboardingActivity(true)
+            val action = SettingsNavDirections.actionOnboardingActivity(true)
             findNavController().navigate(action)
         }
         sendFeedbackButton.setSafeOnClickListener {
             PlayStoreActions.goToPlayStoreAppDetails(requireContext(), requireContext().packageName)
+        }
+        contactSupport.setSafeOnClickListener {
+            val action = SettingsNavDirections.actionSupport()
+            findNavController().navigate(action)
+        }
+        shareApp.setSafeOnClickListener {
+            ExternalLinksHelper.shareText(
+                requireContext(),
+                message = getString(R.string.settings_setting_share_message),
+                subject = getString(R.string.app_name),
+                chooserTitle = getString(R.string.settings_setting_share)
+            )
         }
 
         applicationVersion.text = getString(
@@ -90,12 +104,38 @@ class SettingsFragment : Fragment(R.layout.settings_fragment) {
             BuildConfig.VERSION_NAME,
             BuildConfig.VERSION_CODE
         )
+
+        viewModel.navigateToFaqs.observe(viewLifecycleOwner, Observer {
+            it.getContentIfNotHandled()?.let {
+                findNavController().navigate(SettingsNavDirections.actionFaq())
+            }
+        })
+
+        viewModel.errorFetchingFaqs.observe(viewLifecycleOwner, Observer {
+            it.getContentIfNotHandled()?.let {
+                openConfirmationDialog(
+                    positiveButton = getString(android.R.string.ok),
+                    message = getString(R.string.upload_data_connection_error_message),
+                    title = getString(R.string.upload_data_connection_error_title),
+                    cancelable = true,
+                    requestCode = 0
+                )
+            }
+        })
+
+        viewModel.loading.observe(viewLifecycleOwner, Observer {
+            (activity as? AppCompatActivity)?.loading(it, ProgressDialogFragment())
+        })
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == SettingsViewModel.EXPOSRE_NOTIFICATION_SETTINGS_REQUEST) {
+        if (requestCode == SettingsViewModel.EXPOSURE_NOTIFICATION_SETTINGS_REQUEST) {
             // Nothing to do
         }
     }
+
+    override fun onDialogPositive(requestCode: Int) {}
+
+    override fun onDialogNegative(requestCode: Int) {}
 }

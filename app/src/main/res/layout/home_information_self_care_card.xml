@@ -24,6 +24,7 @@
     android:layout_marginEnd="25dp"
     android:layout_marginBottom="8dp"
     android:backgroundTint="@color/card_dark"
+    app:rippleColor="@color/rippleColorLight"
     android:foreground="?attr/selectableItemBackground"
     app:cardCornerRadius="@dimen/card_radius"
     app:cardElevation="@dimen/cards_elevation">
@@ -31,33 +32,37 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/container"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:minHeight="140dp">
 
         <it.ministerodellasalute.immuni.ui.view.ImageScaleView
             android:id="@+id/icon"
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:layout_weight="1"
+            android:contentDescription="@string/home_view_info_protection_title"
             android:scaleType="matrix"
-            app:matrixType="bottom_left"
-            android:contentDescription="@string/home_information_self_care"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintWidth_percent="0.4"
-            android:src="@drawable/illustration_doctor" />
+            app:matrixType="bottom_left"
+            app:srcCompat="@drawable/illustration_doctor" />
 
         <TextView
             android:id="@+id/title"
             style="@style/H4Section"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="24dp"
-            android:layout_marginTop="24dp"
-            android:layout_marginEnd="24dp"
-            android:text="@string/home_information_self_care"
+            android:layout_marginStart="30dp"
+            android:layout_marginTop="30dp"
+            android:layout_marginEnd="30dp"
+            android:text="@string/home_view_info_protection_title"
             android:textColor="@color/background"
+            app:layout_constraintVertical_chainStyle="packed"
+            app:layout_constraintBottom_toTopOf="@+id/subtitle"
             app:layout_constraintEnd_toStartOf="@+id/icon"
+            app:layout_constraintHorizontal_bias="0.5"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -67,8 +72,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:layout_marginBottom="24dp"
-            android:text="@string/know_more"
+            android:layout_marginBottom="30dp"
+            android:text="@string/home_view_info_button_title"
             android:textColor="@color/background"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="@+id/title"

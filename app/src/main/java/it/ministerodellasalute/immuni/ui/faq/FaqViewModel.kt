@@ -19,47 +19,75 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import it.ministerodellasalute.immuni.extensions.livedata.Event
+import it.ministerodellasalute.immuni.api.services.Faq
 import it.ministerodellasalute.immuni.logic.settings.ConfigurationSettingsManager
-import it.ministerodellasalute.immuni.logic.settings.models.FetchFaqsResult
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.koin.core.KoinComponent
 
 class FaqViewModel(
-    private val settingsManager: ConfigurationSettingsManager
+    val settingsManager: ConfigurationSettingsManager
 ) : ViewModel(), KoinComponent {
 
-    private val _questionAndAnswers = MutableLiveData<List<QuestionAndAnswer>>()
-    val questionAndAnswers: LiveData<List<QuestionAndAnswer>> = _questionAndAnswers
+    private val _questionAndAnswers = MutableLiveData<FaqListViewData>()
+    val questionAndAnswers: LiveData<FaqListViewData> = _questionAndAnswers
 
-    val loading = MutableLiveData<Boolean>()
-    val loadingError = MutableLiveData<Event<Boolean>>()
+    private var filterJob: Job? = null
 
-    init {
-        loadQuestionAndAnswers()
-    }
+    fun onFaqSearchChanged(text: String) {
+        // Stop previous filter, since it's not needed anymore
+        filterJob?.cancel()
+        filterJob = viewModelScope.launch(Dispatchers.Default) {
+            settingsManager.faqs.collect { faqList ->
+                val exactMatch = mutableListOf<Faq>()
+                val fuzzyMatch = mutableListOf<Faq>()
 
-    fun loadQuestionAndAnswers(delay: Long = 0L) {
-        viewModelScope.launch {
-            loading.value = true
-            delay(delay)
-            val response = settingsManager.fetchFaqs()
-            loading.value = false
-            when (response) {
-                is FetchFaqsResult.Success -> {
-                    val faqs = response.faqs
-                    _questionAndAnswers.value = faqs.faqs.filterNotNull().map {
-                        QuestionAndAnswer(
-                            it.title,
-                            it.content
-                        )
+                faqList?.forEach { faq ->
+                    if (!isActive) return@collect
+                    when {
+                        faq.title.contains(text, ignoreCase = true) -> exactMatch += faq
+                        faq.title.fuzzyContains(text) -> fuzzyMatch += faq
                     }
                 }
-                else -> {
-                    loadingError.value = Event(true)
+
+                val filteredFaq = (exactMatch + fuzzyMatch).map { faq ->
+                    if (!isActive) return@collect
+                    QuestionAndAnswer(
+                        faq.title,
+                        faq.content
+                    )
                 }
+
+                _questionAndAnswers.postValue(FaqListViewData(text, filteredFaq))
             }
         }
     }
+
+    init {
+        onFaqSearchChanged("")
+    }
+}
+
+data class FaqListViewData(val highlight: String, val faqList: List<QuestionAndAnswer>)
+
+fun String.fuzzyContains(other: String): Boolean {
+    val text = this
+    if (other.length > text.length) return false
+
+    var otherIdx = 0
+    var textIdx = 0
+
+    while (otherIdx != other.length) {
+        if (textIdx == text.length) return false
+
+        if (other[otherIdx].equals(text[textIdx], ignoreCase = true)) {
+            otherIdx += 1
+        }
+
+        textIdx += 1
+    }
+    return true
 }
